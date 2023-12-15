@@ -16,27 +16,28 @@ cifar10_data_batch_3 = unpickle("cifar-10-batches-py/data_batch_1")
 cifar10_data_batch_4 = unpickle("cifar-10-batches-py/data_batch_1")
 cifar10_data_batch_5 = unpickle("cifar-10-batches-py/data_batch_1")
 cifar10_label_names = unpickle("cifar-10-batches-py/batches.meta")
+cifar10_test_batch = unpickle("cifar-10-batches-py/test_batch")
 cifar10_unwanted_labels = [cifar10_label_names[b'label_names'][0],
                            cifar10_label_names[b'label_names'][6],
                            cifar10_label_names[b'label_names'][8]]
-
 
 cifar100_test = unpickle("cifar-100-python/test")
 cifar100_train = unpickle("cifar-100-python/train")
 cifar100_meta = unpickle("cifar-100-python/meta")
 
+
 cifar100_wanted_fine_labels = [
-    cifar100_meta[b'fine_label_names'][19],# cattle
-    cifar100_meta[b'fine_label_names'][34],# fox
-    cifar100_meta[b'fine_label_names'][41],# lawnmower
-    cifar100_meta[b'fine_label_names'][65],# rabbit
-    cifar100_meta[b'fine_label_names'][80],# squirrel
-    cifar100_meta[b'fine_label_names'][89]# tractor
+    cifar100_meta[b'fine_label_names'][19],  # cattle
+    cifar100_meta[b'fine_label_names'][34],  # fox
+    cifar100_meta[b'fine_label_names'][41],  # lawnmower
+    cifar100_meta[b'fine_label_names'][65],  # rabbit
+    cifar100_meta[b'fine_label_names'][80],  # squirrel
+    cifar100_meta[b'fine_label_names'][89]  # tractor
 ]
 
 cifar100_wanted_coarse_labels = [
-    cifar100_meta[b'coarse_label_names'][14], # baby, boy, girl, man, woman
-    cifar100_meta[b'coarse_label_names'][17], # maple, oak, palm, pine, willow
+    cifar100_meta[b'coarse_label_names'][14],  # baby, boy, girl, man, woman
+    cifar100_meta[b'coarse_label_names'][17],  # maple, oak, palm, pine, willow
     cifar100_meta[b'coarse_label_names'][18]  # bicycle, bus, motorcycle, pickup truck, train
 ]
 
@@ -54,7 +55,8 @@ def merge_dicts_with_different_labels(dict_list):
 
 
 def merge_label_names(labels_dict_list):
-    merged_label_names = [label for d in labels_dict_list for label in d.get(b'label_names', d.get(b'fine_label_names', []))]
+    merged_label_names = [label for d in labels_dict_list for label in
+                          d.get(b'label_names', d.get(b'fine_label_names', []))]
     return {b'label_names': merged_label_names}
 
 
@@ -94,10 +96,13 @@ def remove_unwanted_labels(dict_list):
 def remove_unwanted_labels_cifar_100(dict_list):
     dict_list[b'data'] = dict_list[b'data'].tolist()
 
-    if len(dict_list[b'fine_labels']) == len(dict_list[b'data']) and len(dict_list[b'fine_labels']) == len(dict_list[b'coarse_labels']):
+    if len(dict_list[b'fine_labels']) == len(dict_list[b'data']) and len(dict_list[b'fine_labels']) == len(
+            dict_list[b'coarse_labels']):
         counter = 0
         while counter < len(dict_list[b'data']):
-            if dict_list[b'coarse_labels'][counter] not in cifar100_wanted_coarse_labels and dict_list[b'fine_labels'][counter] not in cifar100_wanted_fine_labels:
+            if dict_list[b'coarse_labels'][counter] not in cifar100_wanted_coarse_labels \
+                    and dict_list[b'fine_labels'][counter] not in cifar100_wanted_fine_labels:
+
                 del dict_list[b'fine_labels'][counter]
                 del dict_list[b'coarse_labels'][counter]
                 del dict_list[b'data'][counter]
@@ -109,49 +114,67 @@ def remove_unwanted_labels_cifar_100(dict_list):
     return dict_list
 
 
-def count_labels(dict_list):
-    for i in range(len(combined_labels_dict[b'label_names'])):
+def count_labels(data_dict, labels_dict):
+    for i in range(len(labels_dict[b'label_names'])):
         counter = 0
 
-        for j in range(len(dict_list[b'labels'])):
-            if dict_list[b'labels'][j] == combined_labels_dict[b'label_names'][i]:
+        for j in range(len(data_dict[b'labels'])):
+            if data_dict[b'labels'][j] == labels_dict[b'label_names'][i]:
                 counter = counter + 1
 
-        print(combined_labels_dict[b'label_names'][i], " count: ", counter)
+        if counter > 0:
+            print(labels_dict[b'label_names'][i], " count: ", counter)
 
 
-combined_labels_list = [cifar10_label_names, cifar100_meta]
-combined_labels_dict = merge_label_names(combined_labels_list)
-
-cifar10_dict_list = [cifar10_data_batch_1, cifar10_data_batch_2, cifar10_data_batch_3, cifar10_data_batch_4, cifar10_data_batch_5]
-cifar10_merged_dict = merge_dicts(cifar10_dict_list)
-cifar10_merged_dict = replace_numerical_labels_with_names(cifar10_merged_dict)
-cifar10_merged_dict = remove_unwanted_labels(cifar10_merged_dict)
-
-cifar100_train = replace_numerical_labels_with_fine_names(cifar100_train)
-cifar100_train = remove_unwanted_labels_cifar_100(cifar100_train)
-
-entire_dict_list = [cifar10_merged_dict, cifar100_train]
-merged_data_dict = merge_dicts_with_different_labels(entire_dict_list)
-
-print("\nLabels length", len(merged_data_dict[b'labels']))
-print("Data rows length", len(merged_data_dict[b'data']))
-print("Data columns length", len(merged_data_dict[b'data'][1]))
-
-img = merged_data_dict[b'data'][0]
+# Displaying a sample image
+img = cifar100_train[b'data'][500]
 reshaped_image = np.reshape(img, (32, 32, 3), order='F')
 plt.imshow(reshaped_image)
 plt.show()
 
-print(len(cifar100_train[b'coarse_labels']))
-print(len(cifar100_train[b'fine_labels']))
-print(len(cifar100_train[b'data']))
+# Getting label names from cifar10 and cifar100 and combining them into a single dictionary
+combined_labels_list = [cifar10_label_names, cifar100_meta]
+combined_labels_dict = merge_label_names(combined_labels_list)
 
-print("\nLength of labels after removing unwanted labels:", len(merged_data_dict[b'labels']))
-print("Length of data after removing unwanted labels:", len(merged_data_dict[b'data']))
+# Replacing numerical values in cifar10 test batch with their corresponding label names + removing any unwanted labels
+cifar10_test_batch = replace_numerical_labels_with_names(cifar10_test_batch)
+cifar10_test_batch = remove_unwanted_labels(cifar10_test_batch)
 
-print("\nCOUNTS PER LABEL AFTER REMOVING UNWANTED LABELS")
-count_labels(merged_data_dict)
+# Replacing numerical values in cifar100 test batch with their corresponding label names + removing any unwanted labels
+cifar100_test = replace_numerical_labels_with_fine_names(cifar100_test)
+cifar100_test = remove_unwanted_labels_cifar_100(cifar100_test)
 
+# Combining cifar10 and cifar100 training data into a single dictionary
+all_tests_list = [cifar10_test_batch, cifar100_test]
+merged_tests_dict = merge_dicts_with_different_labels(all_tests_list)
 
+# Combining all batches of cifar10 training data into a single dictionary
+cifar10_dict_list = [cifar10_data_batch_1, cifar10_data_batch_2, cifar10_data_batch_3,
+                     cifar10_data_batch_4, cifar10_data_batch_5]
+cifar10_merged_dict = merge_dicts(cifar10_dict_list)
 
+# Replacing numerical values in cifar10 training dict with their corresponding label names + removing any unwanted labels
+cifar10_merged_dict = replace_numerical_labels_with_names(cifar10_merged_dict)
+cifar10_merged_dict = remove_unwanted_labels(cifar10_merged_dict)
+
+# Replacing numerical values in cifar100 training dict with their corresponding label names + removing any unwanted labels
+cifar100_train = replace_numerical_labels_with_fine_names(cifar100_train)
+cifar100_train = remove_unwanted_labels_cifar_100(cifar100_train)
+
+# Combining cifar10 and cifar100 training data into a single dictionary
+entire_dict_list = [cifar10_merged_dict, cifar100_train]
+merged_data_dict = merge_dicts_with_different_labels(entire_dict_list)
+
+print("\nTotal number of training images: ", len(merged_data_dict[b'data']))
+print("Total number of training labels: ", len(merged_data_dict[b'labels']))
+print("\nTotal number of training images per class")
+print("=====================================================")
+count_labels(merged_data_dict, combined_labels_dict)
+print("=====================================================")
+
+print("\nTotal number of test images: ", len(merged_tests_dict[b'data']))
+print("Total number of test labels: ", len(merged_tests_dict[b'labels']))
+print("\nTotal number of test images per class")
+print("=====================================================")
+count_labels(merged_tests_dict, combined_labels_dict)
+print("=====================================================")
