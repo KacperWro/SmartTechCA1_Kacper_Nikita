@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-
+import cv2
+import statistics
+from skimage.color import rgb2gray, gray2rgb
 
 def unpickle(file):
     import pickle
@@ -178,3 +180,30 @@ print("\nTotal number of test images per class")
 print("=====================================================")
 count_labels(merged_tests_dict, combined_labels_dict)
 print("=====================================================")
+
+
+merged_data_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_data_dict[b'data']]
+def normalise_image_pixel_values(dict_list):
+    for i in range(len(dict_list[b'data'])):
+        original_array = np.array(dict_list[b'data'][i], dtype = float)
+        result_array = original_array / 255.0
+        dict_list[b'data'][i] = result_array.tolist()
+    return dict_list
+
+def grayscale_images(dict_list):
+    for i in range(len(dict_list[b'data'])):
+        img = dict_list[b'data'][i]
+        reshaped_image = np.reshape(img, (32, 32, 3), order='F') #images are 32 x 32
+        grayscale_image = rgb2gray(reshaped_image)
+        dict_list[b'data'][i] = grayscale_image
+        
+
+merged_data_dict = normalise_image_pixel_values(merged_data_dict)
+grayscale_images(merged_data_dict)
+print(len(merged_data_dict[b'data'][3]))
+
+# sample image after normalisation and grayscaling
+img = merged_data_dict[b'data'][3]
+reshaped_image = np.reshape(img, (32, 32, 1), order='F')
+plt.imshow(reshaped_image)
+plt.show()
