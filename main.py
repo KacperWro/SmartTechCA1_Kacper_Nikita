@@ -4,7 +4,9 @@ from PIL import Image
 import cv2
 import statistics
 from skimage.color import rgb2gray, gray2rgb
-
+from imgaug import augmenters as iaa
+import matplotlib.image as mpimg
+import random
 
 def unpickle(file):
     import pickle
@@ -214,8 +216,72 @@ merged_data_dict[b'data'] = [[float(num) for num in sublist] for sublist in merg
 merged_data_dict = normalise_image_pixel_values(merged_data_dict)
 print(len(merged_data_dict[b'data'][3]))
 
-# sample image after normalisation and grayscaling
+# sample training image after normalisation and grayscaling
 img = merged_data_dict[b'data'][3][:1024]
 reshaped_image = np.reshape(img, (32, 32, 1), order='F')
 plt.imshow(reshaped_image)
 plt.show()
+
+grayscale_images(merged_tests_dict)
+merged_tests_dict = equalize_images(merged_tests_dict)
+merged_tests_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_tests_dict[b'data']]
+merged_tests_dict = normalise_image_pixel_values(merged_tests_dict)
+print(len(merged_tests_dict[b'data'][3]))
+
+# sample training image after normalisation and grayscaling
+img = merged_data_dict[b'data'][3][:1024]
+reshaped_image = np.reshape(img, (32, 32, 1), order='F')
+plt.imshow(reshaped_image)
+plt.show()
+
+def zoom(mfernum1):
+    zoom = iaa.Affine(scale=(1, 1.3)) #affine transformation preserves straight lines so zoom doesn't affect them
+    mfernum1 = zoom.augment_image(mfernum1)
+    return mfernum1
+
+def pan(mfernum2):
+    pan_func = iaa.Affine(translate_percent={"x":(-0.1, 0.1), "y":(-0.1, 0.1)})
+    panned_image = pan_func.augment_image(mfernum2)
+    return panned_image
+
+def img_random_brightness(mfernum3):
+    brightness = iaa.Multiply((0.2, 1.2)) #multiple image by 0.2 to make it darker, multiple by 1.2 to make it brighter
+    mfernum3 = brightness.augment_image(mfernum3)
+    return mfernum3
+
+# augment training data
+def random_augment(image):
+    #image = mpimg.imread(image) 
+    if np.random.rand() < 0.5:
+        image = zoom(image)
+    if np.random.rand() < 0.5:
+        image = pan(image)
+    if np.random.rand() < 0.5:
+        image = img_random_brightness(image)
+    return image
+
+def batch_generator(image_paths, image_names, batch_size, is_training):
+    while True:
+        batch_img = []
+        batch_names = []
+        image_paths = np.asarray(image_paths)
+        for i in range(batch_size):
+            random_index = random.randint(0, len(image_paths) - 1)
+            img = np.reshape(image_paths[random_index][:1024], (32, 32, 1), order='F')
+            names = image_names[random_index]
+            if is_training: #can augment training data, but validation/test data we shouldn't augment
+                img = random_augment(img)
+            batch_img.append(img)
+            batch_names.append(names)
+        yield(np.asarray(batch_img), np.asarray(batch_names))
+
+
+x_train_gen, y_train_gen = next(batch_generator(merged_data_dict[b'data'], merged_data_dict[b'labels'], 1, 1))
+x_valid_gen, y_valid_gen = next(batch_generator(merged_tests_dict[b'data'], merged_tests_dict[b'labels'], 1, 0))
+
+fig, axs = plt.subplots(1, 2, figsize=(15,10))
+fig.tight_layout()
+axs[0].imshow(x_train_gen[0])
+axs[0].set_title("Training Image")
+axs[1].imshow(x_valid_gen[0])
+axs[1].set_title("Validation Image")
