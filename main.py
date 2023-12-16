@@ -198,8 +198,9 @@ def grayscale_images(dict_list):
         img = dict_list[b'data'][i]
         reshaped_image = np.reshape(img, (32, 32, 3), order='F')
         grayscale_image = cv2.cvtColor(reshaped_image, cv2.COLOR_RGB2GRAY)
-        flattened_grayscale = np.tile(grayscale_image.flatten(), 3)
-        dict_list[b'data'][i] = flattened_grayscale
+        blur = cv2.GaussianBlur(grayscale_image, (5, 5), 0)
+        flattened_image = np.tile(blur.flatten(), 3)
+        dict_list[b'data'][i] = flattened_image
         
 
 def equalize_images(dict_list):
