@@ -5,6 +5,7 @@ import cv2
 import statistics
 from skimage.color import rgb2gray, gray2rgb
 
+
 def unpickle(file):
     import pickle
     with open(file, 'rb') as fo:
@@ -182,7 +183,6 @@ count_labels(merged_tests_dict, combined_labels_dict)
 print("=====================================================")
 
 
-merged_data_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_data_dict[b'data']]
 def normalise_image_pixel_values(dict_list):
     for i in range(len(dict_list[b'data'])):
         original_array = np.array(dict_list[b'data'][i], dtype = float)
@@ -190,20 +190,32 @@ def normalise_image_pixel_values(dict_list):
         dict_list[b'data'][i] = result_array.tolist()
     return dict_list
 
+
 def grayscale_images(dict_list):
     for i in range(len(dict_list[b'data'])):
         img = dict_list[b'data'][i]
-        reshaped_image = np.reshape(img, (32, 32, 3), order='F') #images are 32 x 32
-        grayscale_image = rgb2gray(reshaped_image)
-        dict_list[b'data'][i] = grayscale_image
+        reshaped_image = np.reshape(img, (32, 32, 3), order='F')
+        grayscale_image = cv2.cvtColor(reshaped_image, cv2.COLOR_RGB2GRAY)
+        flattened_grayscale = np.tile(grayscale_image.flatten(), 3)
+        dict_list[b'data'][i] = flattened_grayscale
         
 
-merged_data_dict = normalise_image_pixel_values(merged_data_dict)
+def equalize_images(dict_list):
+    for i in range(len(dict_list[b'data'])):
+        equalized_image = cv2.equalizeHist(dict_list[b'data'][i])
+        equalized_image_flattened = equalized_image.ravel()
+        dict_list[b'data'][i] = equalized_image_flattened
+    return dict_list
+
+
 grayscale_images(merged_data_dict)
+merged_data_dict = equalize_images(merged_data_dict)
+merged_data_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_data_dict[b'data']]
+merged_data_dict = normalise_image_pixel_values(merged_data_dict)
 print(len(merged_data_dict[b'data'][3]))
 
 # sample image after normalisation and grayscaling
-img = merged_data_dict[b'data'][3]
+img = merged_data_dict[b'data'][3][:1024]
 reshaped_image = np.reshape(img, (32, 32, 1), order='F')
 plt.imshow(reshaped_image)
 plt.show()
