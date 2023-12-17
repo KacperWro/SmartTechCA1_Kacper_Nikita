@@ -7,9 +7,9 @@ from skimage.color import rgb2gray, gray2rgb
 from imgaug import augmenters as iaa
 import matplotlib.image as mpimg
 import random
+import pickle
 
 def unpickle(file):
-    import pickle
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     return dict
@@ -329,41 +329,24 @@ def create_augmented_images_for_cifar100_classes(image_paths, image_names):
 
 new_images, new_names = create_augmented_images_for_cifar100_classes(merged_data_dict[b'data'], merged_data_dict[b'labels'])
 
-print(len(new_images))
-print()
-print(len(new_names))
 
 
 
-img = new_images[0][:1024]
-reshaped_image = np.reshape(img, (32, 32, 1), order='F')
-plt.imshow(reshaped_image)
-plt.show()
+merged_data_dict[b'data'].extend(new_images)
+merged_data_dict[b'labels'].extend(new_names)
 
-    
-label_numeric_encodings = {
-  b'automobile': 1,
-  b'bird': 2,
-  b'cat': 3,
-  b'deer': 4,
-  b'dog': 5,
-  b'horse': 6,
-  b'truck': 7,
-  b'baby': 8,
-  b'bicycle': 9,
-  b'boy': 10,
-  b'bus': 11,
-  b'cattle': 12,
-  b'fox': 13,
-  b'girl': 14,
-  b'lawn_mower': 15,
-  b'man': 16,
-  b'motorcycle': 17,
-  b'pickup_truck': 18,
-  b'rabbit': 19,
-  b'squirrel': 20,
-  b'tractor': 21,
-  b'train': 22,
-  b'woman': 23,
-  b'tree': 24,
-}
+
+print("\nTotal number of training images per class")
+print("=====================================================")
+count_labels(merged_data_dict, combined_labels_dict)
+print("=====================================================")
+
+
+file = open("train_data_dict.pkl", "wb")
+pickle.dump(merged_data_dict, file)
+file.close()
+
+file = open("test_data_dict.pkl", "wb")
+pickle.dump(merged_tests_dict, file)
+file.close()
+
