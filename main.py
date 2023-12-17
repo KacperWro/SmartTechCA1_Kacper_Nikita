@@ -4,7 +4,7 @@ import cv2
 from imgaug import augmenters as iaa
 
 from keras.models import Sequential
-from keras.layers import Dense, Flatten, Conv2D, MaxPooling2D
+from keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Dropout
 from keras.optimizers import Adam
 from sklearn.preprocessing import OneHotEncoder
 from keras.utils import to_categorical
@@ -306,7 +306,7 @@ plt.show()
 
 
 def onehot_encode_labels(labels):
-    encoder = OneHotEncoder(sparse=False)
+    encoder = OneHotEncoder(sparse_output=False)
     labels_reshaped = [[category] for category in labels]
     encoded_labels = encoder.fit_transform(labels_reshaped)
 
@@ -321,3 +321,47 @@ y_test = onehot_encode_labels(y_test)
 print(y_test[0])
 
 
+# BUILDING OUR MODEL
+
+
+def evaluate_model(model, X_test, y_test):
+    score = model.evaluate(X_test, y_test, verbose=1)
+    print('Test score: ', score[0])
+    print('Test accuracy: ', score[1])
+
+
+def plot_loss(model, X_train, y_train):
+    print(X_train[0])
+    print(len(X_train[0]))
+    history = model.fit(X_train, y_train, validation_split=0.1, epochs=30, batch_size = 100, verbose=1, shuffle=1)
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.legend(['loss', 'validation_loss'])
+    plt.title('Loss')
+    plt.xlabel('epoch')
+    plt.show()
+
+
+def analyze_model(model, X_test, y_test, X_train, y_train):
+    print(model.summary())
+    plot_loss(model, X_train, y_train)
+    evaluate_model(model, X_test, y_test)
+
+
+def lenet_model():
+    model = Sequential()
+    model.add(Conv2D(30, (5,5), input_shape=(32,32,1), activation='relu'))
+
+    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(Conv2D(15, (3,3), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(Flatten())
+    model.add(Dense(500, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(24, activation='softmax')) #use softmax in final layer
+    model.compile(Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+
+model = lenet_model()
+analyze_model(model, x_test, y_test, x_train, y_train)
