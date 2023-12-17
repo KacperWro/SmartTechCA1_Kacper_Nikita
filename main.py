@@ -185,52 +185,57 @@ count_labels(merged_tests_dict, combined_labels_dict)
 print("=====================================================")
 
 
-def normalise_image_pixel_values(dict_list):
-    for i in range(len(dict_list[b'data'])):
-        original_array = np.array(dict_list[b'data'][i], dtype = float)
-        result_array = original_array / 255.0
-        dict_list[b'data'][i] = result_array.tolist()
-    return dict_list
+def grayscale_image(image):
+    reshaped_image = np.reshape(image, (32, 32, 3), order='F')
+    grayscale_image = cv2.cvtColor(reshaped_image, cv2.COLOR_RGB2GRAY)
+    blur = cv2.GaussianBlur(grayscale_image, (5, 5), 0)
+    flattened_image = np.tile(blur.flatten(), 3)
+    return flattened_image
 
 
-def grayscale_images(dict_list):
-    for i in range(len(dict_list[b'data'])):
-        img = dict_list[b'data'][i]
-        reshaped_image = np.reshape(img, (32, 32, 3), order='F')
-        grayscale_image = cv2.cvtColor(reshaped_image, cv2.COLOR_RGB2GRAY)
-        blur = cv2.GaussianBlur(grayscale_image, (5, 5), 0)
-        flattened_image = np.tile(blur.flatten(), 3)
-        dict_list[b'data'][i] = flattened_image
-        
-
-def equalize_images(dict_list):
-    for i in range(len(dict_list[b'data'])):
-        equalized_image = cv2.equalizeHist(dict_list[b'data'][i])
-        equalized_image_flattened = equalized_image.ravel()
-        dict_list[b'data'][i] = equalized_image_flattened
-    return dict_list
+def equalize_image(image):
+    equalized_image = cv2.equalizeHist(image)
+    equalized_image_flattened = equalized_image.ravel()
+    return equalized_image_flattened
 
 
-grayscale_images(merged_data_dict)
-merged_data_dict = equalize_images(merged_data_dict)
-merged_data_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_data_dict[b'data']]
-merged_data_dict = normalise_image_pixel_values(merged_data_dict)
-print(len(merged_data_dict[b'data'][3]))
+def normalize_image(image):
+    original_array = np.array(image, dtype=float)
+    result_array = original_array / 255.0
+    return result_array.tolist()
+
+
+def preprocess_images(data_dict):
+    for i in range(len(data_dict[b'data'])):
+        image = data_dict[b'data'][i]
+        image = grayscale_image(image)
+        image = equalize_image(image)
+        data_dict[b'data'][i] = image
+
+    data_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_data_dict[b'data']]
+
+    for i in range(len(data_dict[b'data'])):
+        image = data_dict[b'data'][i]
+        image = normalize_image(image)
+        data_dict[b'data'][i] = image
+
+    return data_dict
+
 
 # sample training image after normalisation and grayscaling
+merged_data_dict = preprocess_images(merged_data_dict)
+print(len(merged_data_dict[b'data'][3]))
+
 img = merged_data_dict[b'data'][3][:1024]
 reshaped_image = np.reshape(img, (32, 32, 1), order='F')
 plt.imshow(reshaped_image)
 plt.show()
 
-grayscale_images(merged_tests_dict)
-merged_tests_dict = equalize_images(merged_tests_dict)
-merged_tests_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_tests_dict[b'data']]
-merged_tests_dict = normalise_image_pixel_values(merged_tests_dict)
-print(len(merged_tests_dict[b'data'][3]))
-
 # sample training image after normalisation and grayscaling
-img = merged_data_dict[b'data'][3][:1024]
+merged_tests_dict = preprocess_images(merged_tests_dict)
+print(len(merged_data_dict[b'data'][3]))
+
+img = merged_tests_dict[b'data'][3][:1024]
 reshaped_image = np.reshape(img, (32, 32, 1), order='F')
 plt.imshow(reshaped_image)
 plt.show()
