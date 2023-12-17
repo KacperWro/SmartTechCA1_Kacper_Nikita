@@ -130,6 +130,10 @@ def count_labels(data_dict, labels_dict):
         if counter > 0:
             print(labels_dict[b'label_names'][i], " count: ", counter)
 
+def unite_the_trees(training_data):
+    for i in range(len(training_data[b'labels'])):
+        if training_data[b'labels'][i].find(b'_tree') != -1:
+            training_data[b'labels'][i] = b'tree'
 
 # Displaying a sample image
 img = cifar100_train[b'data'][500]
@@ -170,6 +174,26 @@ cifar100_train = remove_unwanted_labels_cifar_100(cifar100_train)
 entire_dict_list = [cifar10_merged_dict, cifar100_train]
 merged_data_dict = merge_dicts_with_different_labels(entire_dict_list)
 
+# unite tree labels
+
+for value in combined_labels_dict[b'label_names']:
+    print(value)
+
+combined_labels_dict[b'label_names'].append(b'tree')
+combined_labels_dict[b'label_names'].remove(b'maple_tree')
+combined_labels_dict[b'label_names'].remove(b'oak_tree')
+combined_labels_dict[b'label_names'].remove(b'palm_tree')
+combined_labels_dict[b'label_names'].remove(b'pine_tree')
+combined_labels_dict[b'label_names'].remove(b'willow_tree')
+
+for value in combined_labels_dict[b'label_names']:
+    print(value)
+
+
+# Unite all tree classes under the label "tree"
+unite_the_trees(merged_data_dict)
+unite_the_trees(merged_tests_dict)
+
 print("\nTotal number of training images: ", len(merged_data_dict[b'data']))
 print("Total number of training labels: ", len(merged_data_dict[b'labels']))
 print("\nTotal number of training images per class")
@@ -185,52 +209,57 @@ count_labels(merged_tests_dict, combined_labels_dict)
 print("=====================================================")
 
 
-def normalise_image_pixel_values(dict_list):
-    for i in range(len(dict_list[b'data'])):
-        original_array = np.array(dict_list[b'data'][i], dtype = float)
-        result_array = original_array / 255.0
-        dict_list[b'data'][i] = result_array.tolist()
-    return dict_list
+def grayscale_image(image):
+    reshaped_image = np.reshape(image, (32, 32, 3), order='F')
+    grayscale_image = cv2.cvtColor(reshaped_image, cv2.COLOR_RGB2GRAY)
+    blur = cv2.GaussianBlur(grayscale_image, (5, 5), 0)
+    flattened_image = np.tile(blur.flatten(), 3)
+    return flattened_image
 
 
-def grayscale_images(dict_list):
-    for i in range(len(dict_list[b'data'])):
-        img = dict_list[b'data'][i]
-        reshaped_image = np.reshape(img, (32, 32, 3), order='F')
-        grayscale_image = cv2.cvtColor(reshaped_image, cv2.COLOR_RGB2GRAY)
-        blur = cv2.GaussianBlur(grayscale_image, (5, 5), 0)
-        flattened_image = np.tile(blur.flatten(), 3)
-        dict_list[b'data'][i] = flattened_image
-        
-
-def equalize_images(dict_list):
-    for i in range(len(dict_list[b'data'])):
-        equalized_image = cv2.equalizeHist(dict_list[b'data'][i])
-        equalized_image_flattened = equalized_image.ravel()
-        dict_list[b'data'][i] = equalized_image_flattened
-    return dict_list
+def equalize_image(image):
+    equalized_image = cv2.equalizeHist(image)
+    equalized_image_flattened = equalized_image.ravel()
+    return equalized_image_flattened
 
 
-grayscale_images(merged_data_dict)
-merged_data_dict = equalize_images(merged_data_dict)
-merged_data_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_data_dict[b'data']]
-merged_data_dict = normalise_image_pixel_values(merged_data_dict)
-print(len(merged_data_dict[b'data'][3]))
+def normalize_image(image):
+    original_array = np.array(image, dtype=float)
+    result_array = original_array / 255.0
+    return result_array.tolist()
+
+
+def preprocess_images(data_dict):
+    for i in range(len(data_dict[b'data'])):
+        image = data_dict[b'data'][i]
+        image = grayscale_image(image)
+        image = equalize_image(image)
+        data_dict[b'data'][i] = image
+
+    data_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_data_dict[b'data']]
+
+    for i in range(len(data_dict[b'data'])):
+        image = data_dict[b'data'][i]
+        image = normalize_image(image)
+        data_dict[b'data'][i] = image
+
+    return data_dict
+
 
 # sample training image after normalisation and grayscaling
+merged_data_dict = preprocess_images(merged_data_dict)
+print(len(merged_data_dict[b'data'][3]))
+
 img = merged_data_dict[b'data'][3][:1024]
 reshaped_image = np.reshape(img, (32, 32, 1), order='F')
 plt.imshow(reshaped_image)
 plt.show()
 
-grayscale_images(merged_tests_dict)
-merged_tests_dict = equalize_images(merged_tests_dict)
-merged_tests_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_tests_dict[b'data']]
-merged_tests_dict = normalise_image_pixel_values(merged_tests_dict)
-print(len(merged_tests_dict[b'data'][3]))
-
 # sample training image after normalisation and grayscaling
-img = merged_data_dict[b'data'][3][:1024]
+merged_tests_dict = preprocess_images(merged_tests_dict)
+print(len(merged_data_dict[b'data'][3]))
+
+img = merged_tests_dict[b'data'][3][:1024]
 reshaped_image = np.reshape(img, (32, 32, 1), order='F')
 plt.imshow(reshaped_image)
 plt.show()
@@ -277,12 +306,64 @@ def batch_generator(image_paths, image_names, batch_size, is_training):
         yield(np.asarray(batch_img), np.asarray(batch_names))
 
 
-x_train_gen, y_train_gen = next(batch_generator(merged_data_dict[b'data'], merged_data_dict[b'labels'], 1, 1))
-x_valid_gen, y_valid_gen = next(batch_generator(merged_tests_dict[b'data'], merged_tests_dict[b'labels'], 1, 0))
 
-fig, axs = plt.subplots(1, 2, figsize=(15,10))
-fig.tight_layout()
-axs[0].imshow(x_train_gen[0])
-axs[0].set_title("Training Image")
-axs[1].imshow(x_valid_gen[0])
-axs[1].set_title("Validation Image")
+def create_augmented_images_for_cifar100_classes(image_paths, image_names):
+    new_images = []
+    new_names = []
+    image_paths = np.asarray(image_paths, dtype=np.float32)
+    for i in range(len(image_paths)):
+        if image_names[i] in [b'baby', b'bicycle', b'boy', b'bus', b'cattle', b'fox', b'girl', b'lawn_mower', b'man', b'motorcycle', b'pickup_truck', b'rabbit', b'squirrel', b'tractor', b'train', b'woman']:
+            img = np.reshape(image_paths[i][:1024], (32, 32, 1), order='F')
+            for j in range(9):
+                img = random_augment(img)
+                new_images.append(img)
+                new_names.append(image_names[i])
+        elif image_names[i] == b'tree':
+            img = np.reshape(image_paths[i][:1024], (32, 32, 1), order='F')
+            img = random_augment(img)
+            new_images.append(img)
+            new_names.append(image_names[i])
+    return new_images, new_names
+
+
+
+new_images, new_names = create_augmented_images_for_cifar100_classes(merged_data_dict[b'data'], merged_data_dict[b'labels'])
+
+print(len(new_images))
+print()
+print(len(new_names))
+
+
+
+img = new_images[0][:1024]
+reshaped_image = np.reshape(img, (32, 32, 1), order='F')
+plt.imshow(reshaped_image)
+plt.show()
+
+    
+label_numeric_encodings = {
+  b'automobile': 1,
+  b'bird': 2,
+  b'cat': 3,
+  b'deer': 4,
+  b'dog': 5,
+  b'horse': 6,
+  b'truck': 7,
+  b'baby': 8,
+  b'bicycle': 9,
+  b'boy': 10,
+  b'bus': 11,
+  b'cattle': 12,
+  b'fox': 13,
+  b'girl': 14,
+  b'lawn_mower': 15,
+  b'man': 16,
+  b'motorcycle': 17,
+  b'pickup_truck': 18,
+  b'rabbit': 19,
+  b'squirrel': 20,
+  b'tractor': 21,
+  b'train': 22,
+  b'woman': 23,
+  b'tree': 24,
+}
