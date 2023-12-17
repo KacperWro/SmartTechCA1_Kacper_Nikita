@@ -1,12 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
 import cv2
-import statistics
-from skimage.color import rgb2gray, gray2rgb
 from imgaug import augmenters as iaa
-import matplotlib.image as mpimg
 import random
+
+# from keras.models import Sequential
+# from keras.layers import Dense, Flatten, Conv2D, MaxPooling2D
+# from keras.optimizers import Adam
+
+
+from sklearn.preprocessing import OneHotEncoder
 
 def unpickle(file):
     import pickle
@@ -248,36 +251,40 @@ def preprocess_images(data_dict):
 
 # sample training image after normalisation and grayscaling
 merged_data_dict = preprocess_images(merged_data_dict)
-print(len(merged_data_dict[b'data'][3]))
+print(len(merged_data_dict[b'data'][50]))
 
-img = merged_data_dict[b'data'][3][:1024]
+img = merged_data_dict[b'data'][50][:1024]
 reshaped_image = np.reshape(img, (32, 32, 1), order='F')
 plt.imshow(reshaped_image)
 plt.show()
 
 # sample training image after normalisation and grayscaling
 merged_tests_dict = preprocess_images(merged_tests_dict)
-print(len(merged_data_dict[b'data'][3]))
+print(len(merged_tests_dict[b'data'][50]))
 
-img = merged_tests_dict[b'data'][3][:1024]
+img = merged_tests_dict[b'data'][50][:1024]
 reshaped_image = np.reshape(img, (32, 32, 1), order='F')
 plt.imshow(reshaped_image)
 plt.show()
+
 
 def zoom(mfernum1):
     zoom = iaa.Affine(scale=(1, 1.3)) #affine transformation preserves straight lines so zoom doesn't affect them
     mfernum1 = zoom.augment_image(mfernum1)
     return mfernum1
 
+
 def pan(mfernum2):
     pan_func = iaa.Affine(translate_percent={"x":(-0.1, 0.1), "y":(-0.1, 0.1)})
     panned_image = pan_func.augment_image(mfernum2)
     return panned_image
 
+
 def img_random_brightness(mfernum3):
     brightness = iaa.Multiply((0.2, 1.2)) #multiple image by 0.2 to make it darker, multiple by 1.2 to make it brighter
     mfernum3 = brightness.augment_image(mfernum3)
     return mfernum3
+
 
 # augment training data
 def random_augment(image):
@@ -289,6 +296,7 @@ def random_augment(image):
     if np.random.rand() < 0.5:
         image = img_random_brightness(image)
     return image
+
 
 def batch_generator(image_paths, image_names, batch_size, is_training):
     while True:
@@ -304,7 +312,6 @@ def batch_generator(image_paths, image_names, batch_size, is_training):
             batch_img.append(img)
             batch_names.append(names)
         yield(np.asarray(batch_img), np.asarray(batch_names))
-
 
 
 def create_augmented_images_for_cifar100_classes(image_paths, image_names):
@@ -326,44 +333,31 @@ def create_augmented_images_for_cifar100_classes(image_paths, image_names):
     return new_images, new_names
 
 
-
 new_images, new_names = create_augmented_images_for_cifar100_classes(merged_data_dict[b'data'], merged_data_dict[b'labels'])
 
 print(len(new_images))
 print()
 print(len(new_names))
 
-
-
 img = new_images[0][:1024]
 reshaped_image = np.reshape(img, (32, 32, 1), order='F')
 plt.imshow(reshaped_image)
 plt.show()
 
-    
-label_numeric_encodings = {
-  b'automobile': 1,
-  b'bird': 2,
-  b'cat': 3,
-  b'deer': 4,
-  b'dog': 5,
-  b'horse': 6,
-  b'truck': 7,
-  b'baby': 8,
-  b'bicycle': 9,
-  b'boy': 10,
-  b'bus': 11,
-  b'cattle': 12,
-  b'fox': 13,
-  b'girl': 14,
-  b'lawn_mower': 15,
-  b'man': 16,
-  b'motorcycle': 17,
-  b'pickup_truck': 18,
-  b'rabbit': 19,
-  b'squirrel': 20,
-  b'tractor': 21,
-  b'train': 22,
-  b'woman': 23,
-  b'tree': 24,
-}
+
+def onehot_encode_labels(labels):
+    encoder = OneHotEncoder(sparse=False)
+    labels_reshaped = [[category] for category in y_train]
+    encoded_labels = encoder.fit_transform(labels_reshaped)
+
+    return encoded_labels
+
+
+x_train = merged_data_dict[b'data']
+y_train = merged_data_dict[b'labels']
+y_train = onehot_encode_labels(y_train)
+
+x_test = merged_tests_dict[b'data']
+y_test = merged_tests_dict[b'labels']
+y_test = onehot_encode_labels(y_test)
+
