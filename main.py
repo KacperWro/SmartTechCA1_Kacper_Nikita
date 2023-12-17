@@ -335,14 +335,29 @@ plt.imshow(reshaped_image)
 plt.show()
 
     
-
-
-#x_train_gen, y_train_gen = next(batch_generator(merged_data_dict[b'data'], merged_data_dict[b'labels'], 1, 1))
-#x_valid_gen, y_valid_gen = next(batch_generator(merged_tests_dict[b'data'], merged_tests_dict[b'labels'], 1, 0))
-
-#fig, axs = plt.subplots(1, 2, figsize=(15,10))
-#fig.tight_layout()
-#axs[0].imshow(x_train_gen[0])
-#axs[0].set_title("Training Image")
-#axs[1].imshow(x_valid_gen[0])
-#axs[1].set_title("Validation Image")
+label_numeric_encodings = {
+  b'automobile': 1,
+  b'bird': 2,
+  b'cat': 3,
+  b'deer': 4,
+  b'dog': 5,
+  b'horse': 6,
+  b'truck': 7,
+  b'baby': 8,
+  b'bicycle': 9,
+  b'boy': 10,
+  b'bus': 11,
+  b'cattle': 12,
+  b'fox': 13,
+  b'girl': 14,
+  b'lawn_mower': 15,
+  b'man': 16,
+  b'motorcycle': 17,
+  b'pickup_truck': 18,
+  b'rabbit': 19,
+  b'squirrel': 20,
+  b'tractor': 21,
+  b'train': 22,
+  b'woman': 23,
+  b'tree': 24,
+}
