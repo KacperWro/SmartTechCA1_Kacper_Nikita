@@ -2,14 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 from imgaug import augmenters as iaa
-import random
 
-# from keras.models import Sequential
-# from keras.layers import Dense, Flatten, Conv2D, MaxPooling2D
-# from keras.optimizers import Adam
-
-
+from keras.models import Sequential
+from keras.layers import Dense, Flatten, Conv2D, MaxPooling2D
+from keras.optimizers import Adam
 from sklearn.preprocessing import OneHotEncoder
+from keras.utils import to_categorical
+
 
 def unpickle(file):
     import pickle
@@ -212,59 +211,37 @@ count_labels(merged_tests_dict, combined_labels_dict)
 print("=====================================================")
 
 
-def grayscale_image(image):
-    reshaped_image = np.reshape(image, (32, 32, 3), order='F')
-    grayscale_image = cv2.cvtColor(reshaped_image, cv2.COLOR_RGB2GRAY)
-    blur = cv2.GaussianBlur(grayscale_image, (5, 5), 0)
-    flattened_image = np.tile(blur.flatten(), 3)
-    return flattened_image
+def grayscale(img):
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    return img
 
 
-def equalize_image(image):
-    equalized_image = cv2.equalizeHist(image)
-    equalized_image_flattened = equalized_image.ravel()
-    return equalized_image_flattened
+def equalize(img):
+    img = cv2.equalizeHist(img)
+    return img
 
 
-def normalize_image(image):
-    original_array = np.array(image, dtype=float)
-    result_array = original_array / 255.0
-    return result_array.tolist()
+def preprocess_images(img):
+    img = np.reshape(img, (32, 32, 3), order='F')
+    img = grayscale(img)
+    img = equalize(img)
+    img = img/255
 
-
-def preprocess_images(data_dict):
-    for i in range(len(data_dict[b'data'])):
-        image = data_dict[b'data'][i]
-        image = grayscale_image(image)
-        image = equalize_image(image)
-        data_dict[b'data'][i] = image
-
-    data_dict[b'data'] = [[float(num) for num in sublist] for sublist in merged_data_dict[b'data']]
-
-    for i in range(len(data_dict[b'data'])):
-        image = data_dict[b'data'][i]
-        image = normalize_image(image)
-        data_dict[b'data'][i] = image
-
-    return data_dict
+    return img
 
 
 # sample training image after normalisation and grayscaling
-merged_data_dict = preprocess_images(merged_data_dict)
-print(len(merged_data_dict[b'data'][50]))
+x_train, y_train = merged_data_dict[b'data'], merged_data_dict[b'labels']
+x_test, y_test = merged_tests_dict[b'data'], merged_tests_dict[b'labels']
 
-img = merged_data_dict[b'data'][50][:1024]
-reshaped_image = np.reshape(img, (32, 32, 1), order='F')
-plt.imshow(reshaped_image)
+x_train = np.array(list(map(preprocess_images, x_train)))
+random_image = x_train[3]
+plt.imshow(random_image)
 plt.show()
 
-# sample training image after normalisation and grayscaling
-merged_tests_dict = preprocess_images(merged_tests_dict)
-print(len(merged_tests_dict[b'data'][50]))
-
-img = merged_tests_dict[b'data'][50][:1024]
-reshaped_image = np.reshape(img, (32, 32, 1), order='F')
-plt.imshow(reshaped_image)
+x_test = np.array(list(map(preprocess_images, x_test)))
+random_image = x_test[3]
+plt.imshow(random_image)
 plt.show()
 
 
@@ -298,66 +275,49 @@ def random_augment(image):
     return image
 
 
-def batch_generator(image_paths, image_names, batch_size, is_training):
-    while True:
-        batch_img = []
-        batch_names = []
-        image_paths = np.asarray(image_paths)
-        for i in range(batch_size):
-            random_index = random.randint(0, len(image_paths) - 1)
-            img = np.reshape(image_paths[random_index][:1024], (32, 32, 1), order='F')
-            names = image_names[random_index]
-            if is_training: #can augment training data, but validation/test data we shouldn't augment
-                img = random_augment(img)
-            batch_img.append(img)
-            batch_names.append(names)
-        yield(np.asarray(batch_img), np.asarray(batch_names))
-
-
 def create_augmented_images_for_cifar100_classes(image_paths, image_names):
     new_images = []
     new_names = []
     image_paths = np.asarray(image_paths, dtype=np.float32)
     for i in range(len(image_paths)):
         if image_names[i] in [b'baby', b'bicycle', b'boy', b'bus', b'cattle', b'fox', b'girl', b'lawn_mower', b'man', b'motorcycle', b'pickup_truck', b'rabbit', b'squirrel', b'tractor', b'train', b'woman']:
-            img = np.reshape(image_paths[i][:1024], (32, 32, 1), order='F')
+            img =image_paths[i]
             for j in range(9):
                 img = random_augment(img)
                 new_images.append(img)
                 new_names.append(image_names[i])
         elif image_names[i] == b'tree':
-            img = np.reshape(image_paths[i][:1024], (32, 32, 1), order='F')
+            img = image_paths[i]
             img = random_augment(img)
             new_images.append(img)
             new_names.append(image_names[i])
     return new_images, new_names
 
 
-new_images, new_names = create_augmented_images_for_cifar100_classes(merged_data_dict[b'data'], merged_data_dict[b'labels'])
+new_images, new_names = create_augmented_images_for_cifar100_classes(x_train, y_train)
 
 print(len(new_images))
 print()
 print(len(new_names))
 
-img = new_images[0][:1024]
-reshaped_image = np.reshape(img, (32, 32, 1), order='F')
-plt.imshow(reshaped_image)
+img = new_images[500]
+plt.imshow(img)
 plt.show()
 
 
 def onehot_encode_labels(labels):
     encoder = OneHotEncoder(sparse=False)
-    labels_reshaped = [[category] for category in y_train]
+    labels_reshaped = [[category] for category in labels]
     encoded_labels = encoder.fit_transform(labels_reshaped)
 
     return encoded_labels
 
 
-x_train = merged_data_dict[b'data']
-y_train = merged_data_dict[b'labels']
+print(y_train[0])
 y_train = onehot_encode_labels(y_train)
-
-x_test = merged_tests_dict[b'data']
-y_test = merged_tests_dict[b'labels']
+print(y_train[0])
+print(y_test[0])
 y_test = onehot_encode_labels(y_test)
+print(y_test[0])
+
 
