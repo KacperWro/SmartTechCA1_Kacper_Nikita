@@ -132,10 +132,12 @@ def count_labels(data_dict, labels_dict):
         if counter > 0:
             print(labels_dict[b'label_names'][i], " count: ", counter)
 
+
 def unite_the_trees(training_data):
     for i in range(len(training_data[b'labels'])):
         if training_data[b'labels'][i].find(b'_tree') != -1:
             training_data[b'labels'][i] = b'tree'
+
 
 # Displaying a sample image
 img = cifar100_train[b'data'][500]
@@ -213,6 +215,7 @@ print("=====================================================")
 
 def grayscale(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    img = cv2.GaussianBlur(img, (5, 5), 0)
     return img
 
 
@@ -225,7 +228,7 @@ def preprocess_images(img):
     img = np.reshape(img, (32, 32, 3), order='F')
     img = grayscale(img)
     img = equalize(img)
-    img = img/255
+    img = img/255 # Normalization
 
     return img
 
@@ -246,7 +249,7 @@ plt.show()
 
 
 def zoom(mfernum1):
-    zoom = iaa.Affine(scale=(1, 1.3)) #affine transformation preserves straight lines so zoom doesn't affect them
+    zoom = iaa.Affine(scale=(1, 1.3))
     mfernum1 = zoom.augment_image(mfernum1)
     return mfernum1
 
@@ -258,14 +261,14 @@ def pan(mfernum2):
 
 
 def img_random_brightness(mfernum3):
-    brightness = iaa.Multiply((0.2, 1.2)) #multiple image by 0.2 to make it darker, multiple by 1.2 to make it brighter
+    brightness = iaa.Multiply((0.2, 1.2))
     mfernum3 = brightness.augment_image(mfernum3)
     return mfernum3
 
 
 # augment training data
 def random_augment(image):
-    #image = mpimg.imread(image) 
+    #image = mpimg.imread(image)
     if np.random.rand() < 0.5:
         image = zoom(image)
     if np.random.rand() < 0.5:
@@ -296,9 +299,16 @@ def create_augmented_images_for_cifar100_classes(image_paths, image_names):
 
 new_images, new_names = create_augmented_images_for_cifar100_classes(x_train, y_train)
 
-print(len(new_images))
+print(len(x_train))
 print()
-print(len(new_names))
+print(len(y_train))
+
+x_train = np.concatenate((x_train, new_images))
+y_train = np.concatenate((y_train, new_names))
+
+print(len(x_train))
+print()
+print(len(y_train))
 
 img = new_images[500]
 plt.imshow(img)
@@ -333,7 +343,7 @@ def evaluate_model(model, X_test, y_test):
 def plot_loss(model, X_train, y_train):
     print(X_train[0])
     print(len(X_train[0]))
-    history = model.fit(X_train, y_train, validation_split=0.1, epochs=30, batch_size = 100, verbose=1, shuffle=1)
+    history = model.fit(X_train, y_train, validation_split=0.1, epochs=100, batch_size = 1000, verbose=1, shuffle=1)
     plt.plot(history.history['loss'])
     plt.plot(history.history['val_loss'])
     plt.legend(['loss', 'validation_loss'])
@@ -350,18 +360,28 @@ def analyze_model(model, X_test, y_test, X_train, y_train):
 
 def lenet_model():
     model = Sequential()
-    model.add(Conv2D(30, (5,5), input_shape=(32,32,1), activation='relu'))
 
-    model.add(MaxPooling2D(pool_size=(2,2)))
-    model.add(Conv2D(15, (3,3), activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 1)))
+    model.add(MaxPooling2D((2, 2)))
+
+    model.add(Conv2D(64, (3, 3), activation='relu'))
+    model.add(MaxPooling2D((2, 2)))
+
     model.add(Flatten())
+
     model.add(Dense(500, activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(24, activation='softmax')) #use softmax in final layer
+
+    model.add(Dense(500, activation='relu'))
+    model.add(Dropout(0.5))
+
+    model.add(Dense(24, activation='softmax'))
+
     model.compile(Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
+
     return model
 
 
 model = lenet_model()
 analyze_model(model, x_test, y_test, x_train, y_train)
+
